@@ -1,0 +1,37 @@
+name: Build Apple plug-ins
+
+# Builds Apple's Unity plug-ins (Apple.Core + Apple.BackgroundAssets) from github.com/apple/unityplugins
+# on GitHub's free macOS 26 machine, then offers the two .tgz files as a download.
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Get Apple's plug-in code
+        run: |
+          git clone --depth 1 https://github.com/apple/unityplugins.git
+          cd unityplugins && echo "Apple unityplugins commit: $(git rev-parse HEAD)"
+
+      - name: Show the tools on this Mac
+        run: |
+          sw_vers
+          xcodebuild -version
+          python3 --version
+          npm --version
+
+      - name: Build Apple.Core and Apple.BackgroundAssets
+        working-directory: unityplugins
+        run: python3 build.py -p Core BackgroundAssets -m iOS macOS -bc Release -sc
+
+      - name: List what was made
+        working-directory: unityplugins
+        run: find Build -name "*.tgz" -exec ls -la {} \;
+
+      - name: Offer the files as a download
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-unity-plugins
+          path: unityplugins/Build/**/*.tgz
+          if-no-files-found: error
