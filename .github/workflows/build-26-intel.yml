@@ -1,0 +1,39 @@
+name: Build Apple plug-ins (macOS 26 Intel)
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: macos-26-intel
+    timeout-minutes: 60
+    steps:
+      - name: Pick the newest Xcode 26
+        run: |
+          ls -d /Applications/Xcode*.app
+          X=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          echo "Using $X"
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+          sw_vers
+          python3 --version
+          npm --version
+
+      - name: Get Apple's plug-in code
+        run: |
+          git clone --depth 1 https://github.com/apple/unityplugins.git
+          cd unityplugins && echo "Apple unityplugins commit: $(git rev-parse HEAD)"
+
+      - name: Build Apple.Core and Apple.BackgroundAssets
+        working-directory: unityplugins
+        run: python3 build.py -p Core BackgroundAssets -m iOS macOS -bc Release
+
+      - name: List what was made
+        working-directory: unityplugins
+        run: find Build -name "*.tgz" -exec ls -la {} \;
+
+      - name: Offer the files as a download
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-unity-plugins
+          path: unityplugins/Build/**/*.tgz
+          if-no-files-found: error
